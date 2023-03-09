@@ -394,7 +394,20 @@ class BasicNorm(torch.nn.Module):
         self.eps_min = eps_min
         self.eps_max = eps_max
 
-    def forward(self, x: Tensor) -> Tensor:
+        ### djlee
+        self.speaker_embedding_dim = 192
+        self.normal_shape = 384
+        self.W_scale = nn.Linear(self.speaker_embedding_dim, self.normal_shape)
+        self.W_bias = nn.Linear(self.speaker_embedding_dim, self.normal_shape)
+        self.reset_parameters()
+
+    def reset_parameters(self):
+        torch.nn.init.constant_(self.W_scale.weight, 0.0)
+        torch.nn.init.constant_(self.W_scale.bias, 1.0)
+        torch.nn.init.constant_(self.W_bias.weight, 0.0)
+        torch.nn.init.constant_(self.W_bias.bias, 0.0)
+
+    def forward(self, x: Tensor, embs:Tensor) -> Tensor:
         assert x.shape[self.channel_dim] == self.num_channels
         eps = self.eps
         if self.training and random.random() < 0.25:
@@ -406,11 +419,21 @@ class BasicNorm(torch.nn.Module):
             # gradients to allow the parameter to get back into the allowed
             # region if it happens to exit it.
             eps = eps.clamp(min=self.eps_min, max=self.eps_max)
+        
+        scaling = self.W_scale(embs) ### djlee
+        bias = self.W_bias(embs)       ### djlee
+        
+        scaling, bias = scaling.unsqueeze(0), bias.unsqueeze(0)
+
         scales = (
             torch.mean(x**2, dim=self.channel_dim, keepdim=True) + eps.exp()
         ) ** -0.5
-        return x * scales
 
+        scaled_x = x*scales
+        scaled_x = scaling*scaled_x + bias
+
+        #return x * scales
+        return scaled_x ### djlee
 
 def ScaledLinear(*args, initial_scale: float = 1.0, **kwargs) -> nn.Linear:
     """

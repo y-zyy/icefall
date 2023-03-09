@@ -677,11 +677,15 @@ def compute_loss(
     y = sp.encode(texts, out_type=int)
     y = k2.RaggedTensor(y).to(device)
 
+    embs = batch["embs"] ### djlee
+    embs = embs.to(device)
+
     with torch.set_grad_enabled(is_training):
         simple_loss, pruned_loss = model(
             x=feature,
             x_lens=feature_lens,
             y=y,
+            embs=embs,
             prune_range=params.prune_range,
             am_scale=params.am_scale,
             lm_scale=params.lm_scale,
@@ -810,7 +814,7 @@ def train_one_epoch(
 
         params.batch_idx_train += 1
         batch_size = len(batch["supervisions"]["text"])
-
+        
         try:
             with torch.cuda.amp.autocast(enabled=params.use_fp16):
                 loss, loss_info = compute_loss(
@@ -1085,7 +1089,7 @@ def run(rank, world_size, args):
 
         return True
 
-    train_cuts = train_cuts.filter(remove_short_and_long_utt)
+    train_cuts = train_cuts.filter(remove_short_and_long_utt) ### djlee
 
     if params.start_batch > 0 and checkpoints and "sampler" in checkpoints:
         # We only load the sampler's state dict when it loads a checkpoint
@@ -1110,7 +1114,7 @@ def run(rank, world_size, args):
             sp=sp,
             params=params,
         )
-
+    
     scaler = GradScaler(enabled=params.use_fp16, init_scale=1.0)
     if checkpoints and "grad_scaler" in checkpoints:
         logging.info("Loading grad scaler state dict")

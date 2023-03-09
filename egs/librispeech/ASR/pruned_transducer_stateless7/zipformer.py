@@ -261,6 +261,7 @@ class Zipformer(EncoderInterface):
         self,
         x: torch.Tensor,
         x_lens: torch.Tensor,
+        embs: torch.Tensor,
     ) -> Tuple[torch.Tensor, torch.Tensor]:
         """
         Args:
@@ -297,8 +298,17 @@ class Zipformer(EncoderInterface):
                     x = skip_module(outputs[k], x)
                 elif (not self.training) or random.random() > layer_skip_dropout_prob:
                     x = skip_module(outputs[k], x)
+            '''
             x = module(
                 x,
+                feature_mask=feature_masks[i],
+                src_key_padding_mask=None if mask is None else mask[..., ::ds],
+            )
+            '''
+            ### djlee
+            x = module(
+                x,
+                embs,
                 feature_mask=feature_masks[i],
                 src_key_padding_mask=None if mask is None else mask[..., ::ds],
             )
@@ -423,6 +433,7 @@ class ZipformerEncoderLayer(nn.Module):
         self,
         src: Tensor,
         pos_emb: Tensor,
+        embs: Tensor,
         src_mask: Optional[Tensor] = None,
         src_key_padding_mask: Optional[Tensor] = None,
     ) -> Tensor:
@@ -504,8 +515,10 @@ class ZipformerEncoderLayer(nn.Module):
 
         src = src + self.feed_forward3(src)
 
-        src = self.norm_final(self.balancer(src))
+        #src = self.norm_final(self.balancer(src))
 
+        src = self.norm_final(self.balancer(src), embs) ### djlee ### modify here !!!
+        
         delta = src - src_orig
 
         src = src_orig + delta * self.get_bypass_scale()
@@ -631,6 +644,7 @@ class ZipformerEncoder(nn.Module):
     def forward(
         self,
         src: Tensor,
+        embs: Tensor,
         # Note: The type of feature_mask should be Union[float, Tensor],
         # but to make torch.jit.script() work, we use `float` here
         feature_mask: float = 1.0,
@@ -670,13 +684,22 @@ class ZipformerEncoder(nn.Module):
             if not torch.jit.is_scripting() and not torch.jit.is_tracing():
                 if i in layers_to_drop:
                     continue
+            '''
             output = mod(
                 output,
                 pos_emb,
                 src_mask=mask,
                 src_key_padding_mask=src_key_padding_mask,
             )
-
+            '''
+            ### djlee
+            output = mod(
+                output,
+                pos_emb,
+                embs,
+                src_mask=mask,
+                src_key_padding_mask=src_key_padding_mask,
+            )
             output = output * feature_mask
 
         return output
@@ -704,6 +727,7 @@ class DownsampledZipformerEncoder(nn.Module):
     def forward(
         self,
         src: Tensor,
+        embs: Tensor,
         # Note: the type of feature_mask should be Unino[float, Tensor],
         # but to make torch.jit.script() happ, we use float here
         feature_mask: float = 1.0,
@@ -737,8 +761,17 @@ class DownsampledZipformerEncoder(nn.Module):
         if mask is not None:
             mask = mask[::ds, ::ds]
 
+        '''
         src = self.encoder(
             src,
+            feature_mask=feature_mask,
+            mask=mask,
+            src_key_padding_mask=src_key_padding_mask,
+        )
+        '''
+        src = self.encoder(
+            src,
+            embs,
             feature_mask=feature_mask,
             mask=mask,
             src_key_padding_mask=src_key_padding_mask,

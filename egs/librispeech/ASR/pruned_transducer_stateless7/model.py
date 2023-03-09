@@ -76,6 +76,7 @@ class Transducer(nn.Module):
         x: torch.Tensor,
         x_lens: torch.Tensor,
         y: k2.RaggedTensor,
+        embs: torch.Tensor,
         prune_range: int = 5,
         am_scale: float = 0.0,
         lm_scale: float = 0.0,
@@ -114,7 +115,8 @@ class Transducer(nn.Module):
 
         assert x.size(0) == x_lens.size(0) == y.dim0
 
-        encoder_out, x_lens = self.encoder(x, x_lens)
+        #encoder_out, x_lens = self.encoder(x, x_lens) 
+        encoder_out, x_lens = self.encoder(x, x_lens, embs) ### djlee
         assert torch.all(x_lens > 0)
 
         # Now for the decoder, i.e., the prediction network
