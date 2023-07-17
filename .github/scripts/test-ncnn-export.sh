@@ -8,7 +8,7 @@ log() {
   echo -e "$(date '+%Y-%m-%d %H:%M:%S') (${fname}:${BASH_LINENO[0]}:${FUNCNAME[1]}) $*"
 }
 
-cd egs/librispeech/ASR
+pushd egs/librispeech/ASR
 
 log  "Install ncnn and pnnx"
 
@@ -36,6 +36,8 @@ make -j4 pnnx
 ./src/pnnx || echo "pass"
 
 popd
+
+export PATH=$PWD/ncnn/tools/pnnx/build/src:$PATH
 
 log "=========================================================================="
 repo_url=https://huggingface.co/Zengwei/icefall-asr-librispeech-conv-emformer-transducer-stateless2-2022-07-05
@@ -66,9 +68,9 @@ log "Export via torch.jit.trace()"
   --right-context-length 8 \
   --memory-size 32
 
-./ncnn/tools/pnnx/build/src/pnnx $repo/exp/encoder_jit_trace-pnnx.pt
-./ncnn/tools/pnnx/build/src/pnnx $repo/exp/decoder_jit_trace-pnnx.pt
-./ncnn/tools/pnnx/build/src/pnnx $repo/exp/joiner_jit_trace-pnnx.pt
+pnnx $repo/exp/encoder_jit_trace-pnnx.pt
+pnnx $repo/exp/decoder_jit_trace-pnnx.pt
+pnnx $repo/exp/joiner_jit_trace-pnnx.pt
 
 python3 ./conv_emformer_transducer_stateless2/streaming-ncnn-decode.py \
   --tokens $repo/data/lang_bpe_500/tokens.txt \
@@ -105,9 +107,9 @@ log "Export via torch.jit.trace()"
   --avg 1 \
   --use-averaged-model 0
 
-./ncnn/tools/pnnx/build/src/pnnx $repo/exp/encoder_jit_trace-pnnx.pt
-./ncnn/tools/pnnx/build/src/pnnx $repo/exp/decoder_jit_trace-pnnx.pt
-./ncnn/tools/pnnx/build/src/pnnx $repo/exp/joiner_jit_trace-pnnx.pt
+pnnx $repo/exp/encoder_jit_trace-pnnx.pt
+pnnx $repo/exp/decoder_jit_trace-pnnx.pt
+pnnx $repo/exp/joiner_jit_trace-pnnx.pt
 
 python3 ./lstm_transducer_stateless2/streaming-ncnn-decode.py \
   --tokens $repo/data/lang_bpe_500/tokens.txt \
@@ -164,9 +166,9 @@ popd
   --decoder-dim 512 \
   --joiner-dim 512
 
-./ncnn/tools/pnnx/build/src/pnnx $repo/exp/encoder_jit_trace-pnnx.pt
-./ncnn/tools/pnnx/build/src/pnnx $repo/exp/decoder_jit_trace-pnnx.pt
-./ncnn/tools/pnnx/build/src/pnnx $repo/exp/joiner_jit_trace-pnnx.pt
+pnnx $repo/exp/encoder_jit_trace-pnnx.pt
+pnnx $repo/exp/decoder_jit_trace-pnnx.pt
+pnnx $repo/exp/joiner_jit_trace-pnnx.pt
 
 python3 ./pruned_transducer_stateless7_streaming/streaming-ncnn-decode.py \
   --tokens $repo/data/lang_bpe_500/tokens.txt \
@@ -193,14 +195,14 @@ git lfs pull --include "data/lang_char_bpe/Linv.pt"
 git lfs pull --include "exp/pretrained.pt"
 
 cd exp
-ln -s pretrained.pt epoch-99.pt
+ln -s pretrained.pt epoch-9999.pt
 popd
 
 ./pruned_transducer_stateless7_streaming/export-for-ncnn-zh.py \
   --lang-dir $repo/data/lang_char_bpe \
   --exp-dir $repo/exp \
   --use-averaged-model 0 \
-  --epoch 99 \
+  --epoch 9999 \
   --avg 1 \
   --decode-chunk-len 32 \
   --num-encoder-layers "2,4,3,2,4" \
@@ -214,9 +216,9 @@ popd
   --decoder-dim 512 \
   --joiner-dim 512
 
-./ncnn/tools/pnnx/build/src/pnnx $repo/exp/encoder_jit_trace-pnnx.pt
-./ncnn/tools/pnnx/build/src/pnnx $repo/exp/decoder_jit_trace-pnnx.pt
-./ncnn/tools/pnnx/build/src/pnnx $repo/exp/joiner_jit_trace-pnnx.pt
+pnnx $repo/exp/encoder_jit_trace-pnnx.pt
+pnnx $repo/exp/decoder_jit_trace-pnnx.pt
+pnnx $repo/exp/joiner_jit_trace-pnnx.pt
 
 python3 ./pruned_transducer_stateless7_streaming/streaming-ncnn-decode.py \
   --tokens $repo/data/lang_char_bpe/tokens.txt \
